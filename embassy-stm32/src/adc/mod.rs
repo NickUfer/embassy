@@ -208,14 +208,17 @@ impl<'d, T: Instance> Adc<'d, T> {
 
         // Ensure no conversions are ongoing
         T::regs().stop();
-        #[cfg(any(adc_v2, adc_v3, adc_g0, adc_h7rs, adc_u0, adc_u3, adc_u5, adc_wba))]
+        // ADC must be enabled before configure_sequence on C0, because CCRDY
+        // (channel configuration ready) is only asserted by hardware when the ADC
+        // is enabled. Without this, configure_sequence hangs waiting for CCRDY.
+        #[cfg(any(adc_v2, adc_v3, adc_g0, adc_h7rs, adc_u0, adc_u3, adc_u5, adc_wba, adc_c0))]
         T::regs().enable();
         T::regs().configure_sequence([((channel.channel(), channel.is_differential()), sample_time)].into_iter());
 
         // On chips with differential channels, enable after configure_sequence to allow setting differential channels
         //
         // TODO: If hardware allows, enable after configure_sequence on all chips
-        #[cfg(any(adc_g4, adc_h5, adc_c0))]
+        #[cfg(any(adc_g4, adc_h5))]
         T::regs().enable();
         T::regs().convert();
 
@@ -280,7 +283,7 @@ impl<'d, T: Instance> Adc<'d, T> {
 
         // Ensure no conversions are ongoing
         T::regs().stop();
-        #[cfg(any(adc_g0, adc_v3, adc_h7rs, adc_u0, adc_v4, adc_u3, adc_u5, adc_wba))]
+        #[cfg(any(adc_g0, adc_v3, adc_h7rs, adc_u0, adc_v4, adc_u3, adc_u5, adc_wba, adc_c0))]
         T::regs().enable();
 
         T::regs().configure_sequence(
@@ -290,7 +293,7 @@ impl<'d, T: Instance> Adc<'d, T> {
         // On chips with differential channels, enable after configure_sequence to allow setting differential channels
         //
         // TODO: If hardware allows, enable after configure_sequence on all chips
-        #[cfg(any(adc_g4, adc_h5, adc_c0))]
+        #[cfg(any(adc_g4, adc_h5))]
         T::regs().enable();
         T::regs().configure_dma(ConversionMode::Singular);
 

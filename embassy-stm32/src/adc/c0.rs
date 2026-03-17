@@ -192,9 +192,18 @@ impl AdcRegs for crate::pac::adc::Adc {
             reg.set_scandir(if is_ordered_up { Scandir::UP } else { Scandir::BACK });
         });
 
-        // Trigger and wait for the channel selection procedure to complete.
-        self.isr().modify(|w| w.set_ccrdy(false));
-        while !self.isr().read().ccrdy() {}
+        // Wait for the channel configuration ready flag (CCRDY).
+        // CCRDY is W1C: write 1 to clear it, then poll until hardware re-asserts.
+        //
+        // On STM32C09x (C091/C092), CCRDY is never asserted by hardware after
+        // CHSELR writes, so skip the wait to avoid hanging indefinitely.
+        #[cfg(not(stm32c09x))]
+        {
+            self.isr().write(|w| w.set_ccrdy(true));
+            while !self.isr().read().ccrdy() {}
+        }
+        #[cfg(stm32c09x)]
+        super::blocking_delay_us(1);
     }
 
     fn convert(&self) {
